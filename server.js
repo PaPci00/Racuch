@@ -54,6 +54,23 @@ app.post("/tabs/:id/records", async (req, res) => {
     }
 });
 
+// Usuń rekord
+app.delete("/records/:id", async (req, res) => {
+    try {
+        console.log(req.params.id)
+        const [result] = await db.query("DELETE FROM records WHERE id = ?", [
+            req.params.id,
+        ]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Record not found" });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 const PORT = 3000;
 app.listen(PORT, () =>
     console.log(`✅ API działa na http://localhost:${PORT}`)
