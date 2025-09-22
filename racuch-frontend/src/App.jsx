@@ -120,11 +120,13 @@ function App() {
                     <ul>
                         {records.map(r => (
                             <li key={r.id}>
-                                {r.title} – {r.amount} zł {r.quantity ? `(${r.quantity})` : ""}
+                                {r.title} – {r.amount} zł
+                                {Number(r.quantity) > 0 ? ` (${r.quantity})` : ""}
                                 {r.details && ` | ${r.details}`}
                                 {" "}
                                 <button onClick={() => handleDelete(r.id)}>❌ Usuń</button>
                             </li>
+
                         ))}
                     </ul>
 
