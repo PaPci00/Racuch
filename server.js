@@ -1,8 +1,6 @@
 import express from "express";
 import db from "./db.js";
-import dotenv from "dotenv";
 
-dotenv.config();
 const app = express();
 app.use(express.json());
 
@@ -15,8 +13,4 @@ app.get("/test", async (req, res) => {
         console.error(err);
         res.status(500).json({ error: "Błąd bazy danych" });
     }
-});
-
-app.listen(process.env.PORT, () => {
-    console.log(`Server działa na http://localhost:${process.env.PORT}`);
 });
