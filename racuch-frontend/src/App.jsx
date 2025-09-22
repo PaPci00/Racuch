@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 
 function App() {
+    // Stan logowania i token
+    const [token, setToken] = useState(null);
+    const [loginData, setLoginData] = useState({ username: "", password: "" });
+
+    // Stany danych
     const [categories, setCategories] = useState([]);
     const [tabs, setTabs] = useState([]);
     const [records, setRecords] = useState([]);
@@ -8,7 +13,7 @@ function App() {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedTab, setSelectedTab] = useState(null);
 
-    // Stan formularza
+    // Stan formularza dodawania rekordu
     const [formData, setFormData] = useState({
         title: "",
         amount: "",
@@ -16,32 +21,57 @@ function App() {
         details: ""
     });
 
-    // Pobierz kategorie
+    // ================= LOGOWANIE =================
+    const handleLoginChange = (e) => {
+        setLoginData({ ...loginData, [e.target.name]: e.target.value });
+    };
+
+    const handleLoginSubmit = async (e) => {
+        e.preventDefault();
+        const res = await fetch("http://localhost:3000/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(loginData)
+        });
+        const data = await res.json();
+        if (data.token) {
+            setToken(data.token);
+        } else {
+            alert("Błąd logowania");
+        }
+    };
+
+    // ================= FETCH KATEGORII =================
     useEffect(() => {
-        fetch("http://localhost:3000/categories")
+        if (!token) return;
+        fetch("http://localhost:3000/categories", {
+            headers: { "Authorization": `Bearer ${token}` }
+        })
             .then(res => res.json())
             .then(data => setCategories(data));
-    }, []);
+    }, [token]);
 
-    // Pobierz zakładki po wybraniu kategorii
+    // ================= FETCH ZAKŁADEK =================
     useEffect(() => {
-        if (selectedCategory) {
-            fetch(`http://localhost:3000/categories/${selectedCategory}/tabs`)
-                .then(res => res.json())
-                .then(data => setTabs(data));
-        }
-    }, [selectedCategory]);
+        if (!token || !selectedCategory) return;
+        fetch(`http://localhost:3000/categories/${selectedCategory}/tabs`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => setTabs(data));
+    }, [token, selectedCategory]);
 
-    // Pobierz rekordy po wybraniu zakładki
+    // ================= FETCH REKORDÓW =================
     useEffect(() => {
-        if (selectedTab) {
-            fetch(`http://localhost:3000/tabs/${selectedTab}/records`)
-                .then(res => res.json())
-                .then(data => setRecords(data));
-        }
-    }, [selectedTab]);
+        if (!token || !selectedTab) return;
+        fetch(`http://localhost:3000/tabs/${selectedTab}/records`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => setRecords(data));
+    }, [token, selectedTab]);
 
-    // Obsługa formularza
+    // ================= FORMULARZ DODAWANIA REKORDU =================
     const handleChange = (e) => {
         setFormData({
             ...formData,
@@ -55,34 +85,58 @@ function App() {
 
         const res = await fetch(`http://localhost:3000/tabs/${selectedTab}/records`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
             body: JSON.stringify(formData)
         });
 
         if (res.ok) {
-            // Po dodaniu pobierz ponownie rekordy
-            const newRecords = await fetch(`http://localhost:3000/tabs/${selectedTab}/records`)
-                .then(r => r.json());
+            const newRecords = await fetch(`http://localhost:3000/tabs/${selectedTab}/records`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            }).then(r => r.json());
             setRecords(newRecords);
-
-            // Wyczyść formularz
             setFormData({ title: "", amount: "", quantity: "", details: "" });
         }
     };
 
+    // ================= USUWANIE REKORDU =================
     const handleDelete = async (id) => {
-        console.log("Usuwam rekord o ID:", id);
-
         const res = await fetch(`http://localhost:3000/records/${id}`, {
-            method: "DELETE"
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
         });
-
-        if (res.ok) {
-            // odśwież listę rekordów po usunięciu
-            setRecords(records.filter(r => r.id !== id));
-        }
+        if (res.ok) setRecords(records.filter(r => r.id !== id));
     };
 
+    // ================= RENDER =================
+    if (!token) {
+        return (
+            <div style={{ padding: "20px" }}>
+                <h1>📊 Tracker wydatków – Logowanie</h1>
+                <form onSubmit={handleLoginSubmit}>
+                    <input
+                        type="text"
+                        name="username"
+                        placeholder="Login"
+                        value={loginData.username}
+                        onChange={handleLoginChange}
+                        required
+                    />
+                    <input
+                        type="password"
+                        name="password"
+                        placeholder="Hasło"
+                        value={loginData.password}
+                        onChange={handleLoginChange}
+                        required
+                    />
+                    <button type="submit">Zaloguj</button>
+                </form>
+            </div>
+        );
+    }
 
     return (
         <div style={{ padding: "20px" }}>
@@ -126,17 +180,15 @@ function App() {
                                 {" "}
                                 <button onClick={() => handleDelete(r.id)}>❌ Usuń</button>
                             </li>
-
                         ))}
                     </ul>
-
                 </>
             )}
 
             {selectedTab && (
                 <>
                     <h2>Dodaj rekord</h2>
-                    <form onSubmit={handleSubmit} style={{marginTop: "10px"}}>
+                    <form onSubmit={handleSubmit} style={{ marginTop: "10px" }}>
                         <input
                             type="text"
                             name="title"
