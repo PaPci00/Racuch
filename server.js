@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const SECRET = "tajnyklucz"; // najlepiej w .env
+const SECRET = process.env.SERCET; // najlepiej w .env
 
 // ================= LOGIN =================
 app.post("/login", async (req, res) => {
