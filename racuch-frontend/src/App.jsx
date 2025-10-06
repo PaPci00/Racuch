@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 
 function App() {
-    // Stan logowania i token
+    // ================= STANY =================
     const [token, setToken] = useState(null);
     const [loginData, setLoginData] = useState({ username: "", password: "" });
 
-    // Stany danych
     const [categories, setCategories] = useState([]);
     const [tabs, setTabs] = useState([]);
     const [records, setRecords] = useState([]);
@@ -13,13 +12,15 @@ function App() {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedTab, setSelectedTab] = useState(null);
 
-    // Stan formularza dodawania rekordu
     const [formData, setFormData] = useState({
         title: "",
         amount: "",
         quantity: "",
         details: ""
     });
+
+    const [newCategory, setNewCategory] = useState("");
+    const [newTab, setNewTab] = useState("");
 
     // ================= LOGOWANIE =================
     const handleLoginChange = (e) => {
@@ -41,7 +42,7 @@ function App() {
         }
     };
 
-    // ================= FETCH KATEGORII =================
+    // ================= POBIERANIE DANYCH =================
     useEffect(() => {
         if (!token) return;
         fetch("http://localhost:3000/categories", {
@@ -51,7 +52,6 @@ function App() {
             .then(data => setCategories(data));
     }, [token]);
 
-    // ================= FETCH ZAKŁADEK =================
     useEffect(() => {
         if (!token || !selectedCategory) return;
         fetch(`http://localhost:3000/categories/${selectedCategory}/tabs`, {
@@ -61,7 +61,6 @@ function App() {
             .then(data => setTabs(data));
     }, [token, selectedCategory]);
 
-    // ================= FETCH REKORDÓW =================
     useEffect(() => {
         if (!token || !selectedTab) return;
         fetch(`http://localhost:3000/tabs/${selectedTab}/records`, {
@@ -71,12 +70,9 @@ function App() {
             .then(data => setRecords(data));
     }, [token, selectedTab]);
 
-    // ================= FORMULARZ DODAWANIA REKORDU =================
+    // ================= OBSŁUGA REKORDÓW =================
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e) => {
@@ -101,13 +97,78 @@ function App() {
         }
     };
 
-    // ================= USUWANIE REKORDU =================
-    const handleDelete = async (id) => {
+    const handleDeleteRecord = async (id) => {
         const res = await fetch(`http://localhost:3000/records/${id}`, {
             method: "DELETE",
             headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) setRecords(records.filter(r => r.id !== id));
+    };
+
+    // ================= OBSŁUGA KATEGORII =================
+    const handleAddCategory = async (e) => {
+        e.preventDefault();
+        const res = await fetch("http://localhost:3000/categories", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ name: newCategory })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            setCategories([...categories, data]);
+            setNewCategory("");
+        }
+    };
+
+    const handleDeleteCategory = async (id) => {
+        const res = await fetch(`http://localhost:3000/categories/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+            setCategories(categories.filter(c => c.id !== id));
+            if (selectedCategory === id) {
+                setSelectedCategory(null);
+                setTabs([]);
+                setRecords([]);
+            }
+        }
+    };
+
+    // ================= OBSŁUGA ZAKŁADEK =================
+    const handleAddTab = async (e) => {
+        e.preventDefault();
+        if (!selectedCategory) return;
+        const res = await fetch(`http://localhost:3000/categories/${selectedCategory}/tabs`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ name: newTab })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            setTabs([...tabs, data]);
+            setNewTab("");
+        }
+    };
+
+    const handleDeleteTab = async (id) => {
+        const res = await fetch(`http://localhost:3000/tabs/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+            setTabs(tabs.filter(t => t.id !== id));
+            if (selectedTab === id) {
+                setSelectedTab(null);
+                setRecords([]);
+            }
+        }
     };
 
     // ================= RENDER =================
@@ -142,33 +203,70 @@ function App() {
         <div style={{ padding: "20px" }}>
             <h1>📊 Tracker wydatków</h1>
 
+            {/* ================= KATEGORIE ================= */}
             <h2>Kategorie</h2>
+            <form onSubmit={handleAddCategory}>
+                <input
+                    type="text"
+                    placeholder="Nowa kategoria"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    required
+                />
+                <button type="submit">➕ Dodaj kategorię</button>
+            </form>
             <ul>
                 {categories.map(c => (
-                    <li key={c.id} onClick={() => {
-                        setSelectedCategory(c.id);
-                        setSelectedTab(null);
-                        setRecords([]);
-                    }}>
-                        {c.name}
+                    <li key={c.id}>
+                        <span
+                            style={{ cursor: "pointer" }}
+                            onClick={() => {
+                                setSelectedCategory(c.id);
+                                setSelectedTab(null);
+                                setRecords([]);
+                            }}
+                        >
+                            {c.name}
+                        </span>
+                        {" "}
+                        <button onClick={() => handleDeleteCategory(c.id)}>❌ Usuń</button>
                     </li>
                 ))}
             </ul>
 
-            {tabs.length > 0 && (
+            {/* ================= ZAKŁADKI ================= */}
+            {selectedCategory && (
                 <>
                     <h2>Zakładki</h2>
+                    <form onSubmit={handleAddTab}>
+                        <input
+                            type="text"
+                            placeholder="Nowa zakładka"
+                            value={newTab}
+                            onChange={(e) => setNewTab(e.target.value)}
+                            required
+                        />
+                        <button type="submit">➕ Dodaj zakładkę</button>
+                    </form>
                     <ul>
                         {tabs.map(t => (
-                            <li key={t.id} onClick={() => setSelectedTab(t.id)}>
-                                {t.name}
+                            <li key={t.id}>
+                                <span
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => setSelectedTab(t.id)}
+                                >
+                                    {t.name}
+                                </span>
+                                {" "}
+                                <button onClick={() => handleDeleteTab(t.id)}>❌ Usuń</button>
                             </li>
                         ))}
                     </ul>
                 </>
             )}
 
-            {records.length > 0 && (
+            {/* ================= REKORDY ================= */}
+            {selectedTab && (
                 <>
                     <h2>Rekordy</h2>
                     <ul>
@@ -178,16 +276,12 @@ function App() {
                                 {Number(r.quantity) > 0 ? ` (${r.quantity})` : ""}
                                 {r.details && ` | ${r.details}`}
                                 {" "}
-                                <button onClick={() => handleDelete(r.id)}>❌ Usuń</button>
+                                <button onClick={() => handleDeleteRecord(r.id)}>❌ Usuń</button>
                             </li>
                         ))}
                     </ul>
-                </>
-            )}
 
-            {selectedTab && (
-                <>
-                    <h2>Dodaj rekord</h2>
+                    <h3>Dodaj rekord</h3>
                     <form onSubmit={handleSubmit} style={{ marginTop: "10px" }}>
                         <input
                             type="text"
@@ -219,7 +313,7 @@ function App() {
                             value={formData.details}
                             onChange={handleChange}
                         />
-                        <button type="submit">Dodaj</button>
+                        <button type="submit">➕ Dodaj</button>
                     </form>
                 </>
             )}
