@@ -42,6 +42,13 @@ function App() {
         }
     };
 
+    // ================= WYLOGOWANIE =================
+    const handleLogout = () => {
+        setToken(null)
+        setLoginData({ username: "", password: "" })
+    }
+
+    // ================= FETCH KATEGORII =================
     // ================= POBIERANIE DANYCH =================
     useEffect(() => {
         if (!token) return;
@@ -202,6 +209,7 @@ function App() {
     return (
         <div style={{ padding: "20px" }}>
             <h1>📊 Tracker wydatków</h1>
+            <button onClick={handleLogout}>Wyloguj</button>
 
             {/* ================= KATEGORIE ================= */}
             <h2>Kategorie</h2>
