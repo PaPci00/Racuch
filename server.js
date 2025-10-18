@@ -33,11 +33,6 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// ================= LOGOUT =================
-app.post('./logout', authenticate, (req, res) => {
-    res.json({ message: 'Wylogowanie udane'})
-});
-
 // ================= MIDDLEWARE JWT =================
 const authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
