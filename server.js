@@ -9,6 +9,22 @@ app.use(express.json());
 
 const SECRET = "supersekretnyklucz"; // możesz dać process.env.SECRET w .env
 
+// ================= MIDDLEWARE JWT =================
+const authenticate = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader)
+        return res.status(401).json({ error: "Brak tokena" });
+
+    const token = authHeader.split(" ")[1];
+    try {
+        const payload = jwt.verify(token, SECRET);
+        req.user = payload;
+        next();
+    } catch (err) {
+        res.status(401).json({ error: "Token niepoprawny" });
+    }
+};
+
 // ================= LOGIN =================
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
@@ -26,28 +42,19 @@ app.post("/login", async (req, res) => {
             SECRET,
             { expiresIn: "2h" }
         );
-
         res.json({ token });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ================= MIDDLEWARE JWT =================
-const authenticate = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader)
-        return res.status(401).json({ error: "Brak tokena" });
+// ================= LOGOUT =================
+app.post('/logout', authenticate, (req, res) => {
+    res.json({ message: 'Wylogowanie udane' });
+});
 
-    const token = authHeader.split(" ")[1];
-    try {
-        const payload = jwt.verify(token, SECRET);
-        req.user = payload;
-        next();
-    } catch (err) {
-        res.status(401).json({ error: "Token niepoprawny" });
-    }
-};
+
+
 
 // ================= ENDPOINTY =================
 
