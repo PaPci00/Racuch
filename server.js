@@ -9,6 +9,49 @@ app.use(express.json());
 
 const SECRET = "tajnyklucz"; // najlepiej w .env
 
+// ================= REGISTER - NOWE KONTO =================
+app.post("/register", async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ error: "Username i hasło wymagane" });
+    }
+
+    try {
+        // Sprawdź czy użytkownik już istnieje
+        const [existing] = await db.query("SELECT id FROM users WHERE username = ?", [username]);
+        if (existing.length > 0) {
+            return res.status(409).json({ error: "Użytkownik już istnieje" });
+        }
+
+        // Utwórz użytkownika (bez hashowania)
+        const [userResult] = await db.query(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            [username, password]
+        );
+        const userId = userResult.insertId;
+
+        // Utwórz domyślną kategorię "zakupy"
+        const [categoryResult] = await db.query(
+            "INSERT INTO categories (name, user_id) VALUES (?, ?)",
+            ["zakupy", userId]
+        );
+        const categoryId = categoryResult.insertId;
+
+        // Utwórz domyślną zakładkę "jedzenie"
+        await db.query(
+            "INSERT INTO tabs (name, category_id) VALUES (?, ?)",
+            ["jedzenie", categoryId]
+        );
+
+        // Wygeneruj token i zaloguj automatycznie
+        const token = jwt.sign({ id: userId, username }, SECRET, { expiresIn: "2h" });
+        res.status(201).json({ token, message: "Konto utworzone z domyślnymi danymi" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ================= LOGIN =================
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
@@ -125,8 +168,8 @@ app.get("/tabs/:id/records", authenticate, async (req, res) => {
     try {
         const [rows] = await db.query(
             `SELECT records.* FROM records
-             JOIN tabs ON records.tab_id = tabs.id
-             JOIN categories ON tabs.category_id = categories.id
+                                       JOIN tabs ON records.tab_id = tabs.id
+                                       JOIN categories ON tabs.category_id = categories.id
              WHERE records.tab_id = ? AND categories.user_id = ?`,
             [req.params.id, req.user.id]
         );
@@ -143,7 +186,7 @@ app.post("/tabs/:id/records", authenticate, async (req, res) => {
         // Sprawdź, czy zakładka należy do użytkownika
         const [tabs] = await db.query(
             `SELECT tabs.id FROM tabs
-             JOIN categories ON tabs.category_id = categories.id
+                                     JOIN categories ON tabs.category_id = categories.id
              WHERE tabs.id = ? AND categories.user_id = ?`,
             [req.params.id, req.user.id]
         );
@@ -165,8 +208,8 @@ app.delete("/records/:id", authenticate, async (req, res) => {
         // Sprawdź, czy rekord należy do użytkownika
         const [records] = await db.query(
             `SELECT records.id FROM records
-             JOIN tabs ON records.tab_id = tabs.id
-             JOIN categories ON tabs.category_id = categories.id
+                                        JOIN tabs ON records.tab_id = tabs.id
+                                        JOIN categories ON tabs.category_id = categories.id
              WHERE records.id = ? AND categories.user_id = ?`,
             [req.params.id, req.user.id]
         );
