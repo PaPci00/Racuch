@@ -1,17 +1,13 @@
 import { useEffect, useState } from "react";
 
 function App() {
-    // Stan logowania i token
+    // ================= STANY =================
     const [token, setToken] = useState(null);
     const [view, setView] = useState("login"); // "login", "register", "app"
 
     const [loginData, setLoginData] = useState({ username: "", password: "" });
-    const [registerData, setRegisterData] = useState({ username: '', password: '' });
-    const [showRegister, setShowRegister] = useState(false);
+    const [registerData, setRegisterData] = useState({ username: "", password: "" });
 
-
-
-    // Stany danych
     const [categories, setCategories] = useState([]);
     const [tabs, setTabs] = useState([]);
     const [records, setRecords] = useState([]);
@@ -19,7 +15,6 @@ function App() {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedTab, setSelectedTab] = useState(null);
 
-    // Stan formularza dodawania rekordu
     const [formData, setFormData] = useState({
         title: "",
         amount: "",
@@ -27,7 +22,8 @@ function App() {
         details: ""
     });
 
-
+    const [newCategory, setNewCategory] = useState("");
+    const [newTab, setNewTab] = useState("");
 
     // ================= REJESTRACJA =================
     const handleRegisterChange = (e) => {
@@ -81,33 +77,19 @@ function App() {
         }
     };
 
-    const handleRegisterChange = (e) => {
-        setRegisterData({ ...registerData, [e.target.name]: e.target.value });
+    // ================= WYLOGOWANIE =================
+    const handleLogout = () => {
+        setToken(null);
+        setView("login");
+        setLoginData({ username: "", password: "" });
+        setCategories([]);
+        setTabs([]);
+        setRecords([]);
+        setSelectedCategory(null);
+        setSelectedTab(null);
     };
 
-    const handleRegisterSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await fetch('http://localhost:3000/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(registerData)
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert('Konto utworzone! Zaloguj się.');
-                setRegisterData({ username: '', password: '' });
-                setShowRegister(false);
-            } else {
-                alert(data.error);
-            }
-        } catch (err) {
-            alert('Błąd sieci');
-        }
-    };
-
-
-    // ================= FETCH KATEGORII =================
+    // ================= POBIERANIE DANYCH =================
     useEffect(() => {
         if (!token) return;
         fetch("http://localhost:3000/categories", {
@@ -118,7 +100,6 @@ function App() {
             .catch(err => console.error("Błąd pobierania kategorii:", err));
     }, [token]);
 
-    // ================= FETCH ZAKŁADEK =================
     useEffect(() => {
         if (!token || !selectedCategory) return;
         fetch(`http://localhost:3000/categories/${selectedCategory}/tabs`, {
@@ -129,7 +110,6 @@ function App() {
             .catch(err => console.error("Błąd pobierania zakładek:", err));
     }, [token, selectedCategory]);
 
-    // ================= FETCH REKORDÓW =================
     useEffect(() => {
         if (!token || !selectedTab) return;
         fetch(`http://localhost:3000/tabs/${selectedTab}/records`, {
@@ -140,12 +120,9 @@ function App() {
             .catch(err => console.error("Błąd pobierania rekordów:", err));
     }, [token, selectedTab]);
 
-    // ================= FORMULARZ DODAWANIA REKORDU =================
+    // ================= OBSŁUGA REKORDÓW =================
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e) => {
@@ -174,13 +151,98 @@ function App() {
         }
     };
 
-    // ================= USUWANIE REKORDU =================
-    const handleDelete = async (id) => {
-        const res = await fetch(`http://localhost:3000/records/${id}`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (res.ok) setRecords(records.filter(r => r.id !== id));
+    const handleDeleteRecord = async (id) => {
+        try {
+            const res = await fetch(`http://localhost:3000/records/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) setRecords(records.filter(r => r.id !== id));
+        } catch (err) {
+            alert("Błąd usuwania rekordu");
+        }
+    };
+
+    // ================= OBSŁUGA KATEGORII =================
+    const handleAddCategory = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch("http://localhost:3000/categories", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ name: newCategory })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCategories([...categories, data]);
+                setNewCategory("");
+            }
+        } catch (err) {
+            alert("Błąd dodawania kategorii");
+        }
+    };
+
+    const handleDeleteCategory = async (id) => {
+        try {
+            const res = await fetch(`http://localhost:3000/categories/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setCategories(categories.filter(c => c.id !== id));
+                if (selectedCategory === id) {
+                    setSelectedCategory(null);
+                    setTabs([]);
+                    setRecords([]);
+                }
+            }
+        } catch (err) {
+            alert("Błąd usuwania kategorii");
+        }
+    };
+
+    // ================= OBSŁUGA ZAKŁADEK =================
+    const handleAddTab = async (e) => {
+        e.preventDefault();
+        if (!selectedCategory) return;
+        try {
+            const res = await fetch(`http://localhost:3000/categories/${selectedCategory}/tabs`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ name: newTab })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setTabs([...tabs, data]);
+                setNewTab("");
+            }
+        } catch (err) {
+            alert("Błąd dodawania zakładki");
+        }
+    };
+
+    const handleDeleteTab = async (id) => {
+        try {
+            const res = await fetch(`http://localhost:3000/tabs/${id}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setTabs(tabs.filter(t => t.id !== id));
+                if (selectedTab === id) {
+                    setSelectedTab(null);
+                    setRecords([]);
+                }
+            }
+        } catch (err) {
+            alert("Błąd usuwania zakładki");
+        }
     };
 
     // ================= RENDER =================
@@ -219,86 +281,166 @@ function App() {
 
     if (view === "login") {
         return (
-            <div style={{ padding: '20px' }}>
-                <h1>Tracker wydatków</h1>
-                <h2>{showRegister ? 'Rejestracja nowego konta' : 'Logowanie'}</h2>
-
-                {showRegister ? (
-                    <form onSubmit={handleRegisterSubmit}>
-                        <input type="text" name="username" placeholder="Nazwa użytkownika"
-                               value={registerData.username} onChange={handleRegisterChange} required />
-                        <input type="password" name="password" placeholder="Hasło"
-                               value={registerData.password} onChange={handleRegisterChange} required />
-                        <button type="submit">Zarejestruj</button>
-                        <br/><button type="button" onClick={() => setShowRegister(false)}>Mam konto</button>
-                    </form>
-                ) : (
-                    <form onSubmit={handleLoginSubmit}>
-                        <input type="text" name="username" placeholder="Login"
-                               value={loginData.username} onChange={handleLoginChange} required />
-                        <input type="password" name="password" placeholder="Hasło"
-                               value={loginData.password} onChange={handleLoginChange} required />
-                        <button type="submit">Zaloguj</button>
-                        <br/><button type="button" onClick={() => setShowRegister(true)}>Utwórz konto</button>
-                    </form>
-                )}
+            <div style={{ padding: "20px", maxWidth: "400px", margin: "0 auto" }}>
+                <h1>📊 Tracker wydatków – Logowanie</h1>
+                <form onSubmit={handleLoginSubmit}>
+                    <input
+                        type="text"
+                        name="username"
+                        placeholder="Login"
+                        value={loginData.username}
+                        onChange={handleLoginChange}
+                        required
+                    />
+                    <input
+                        type="password"
+                        name="password"
+                        placeholder="Hasło"
+                        value={loginData.password}
+                        onChange={handleLoginChange}
+                        required
+                    />
+                    <button type="submit">Zaloguj</button>
+                </form>
+                <button
+                    onClick={() => setView("register")}
+                    style={{ marginTop: "10px", width: "100%" }}
+                >
+                    Nie masz konta? Zarejestruj się
+                </button>
             </div>
         );
     }
 
-
-
     return (
-        <div style={{ padding: "20px" }}>
-            <h1>📊 Tracker wydatków</h1>
+        <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h1>📊 Tracker wydatków</h1>
+                <button onClick={handleLogout}>🚪 Wyloguj</button>
+            </div>
 
+            {/* ================= KATEGORIE ================= */}
             <h2>Kategorie</h2>
-            <ul>
+            <form onSubmit={handleAddCategory} style={{ marginBottom: "10px" }}>
+                <input
+                    type="text"
+                    placeholder="Nowa kategoria"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    style={{ padding: "5px", marginRight: "10px" }}
+                    required
+                />
+                <button type="submit">➕ Dodaj kategorię</button>
+            </form>
+            <ul style={{ listStyle: "none", padding: 0 }}>
                 {categories.map(c => (
-                    <li key={c.id} onClick={() => {
-                        setSelectedCategory(c.id);
-                        setSelectedTab(null);
-                        setRecords([]);
+                    <li key={c.id} style={{
+                        padding: "10px",
+                        border: "1px solid #ddd",
+                        marginBottom: "5px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
                     }}>
-                        {c.name}
+                        <span
+                            style={{ cursor: "pointer", fontWeight: selectedCategory === c.id ? "bold" : "normal" }}
+                            onClick={() => {
+                                setSelectedCategory(c.id);
+                                setSelectedTab(null);
+                                setRecords([]);
+                            }}
+                        >
+                            📁 {c.name}
+                        </span>
+                        <button
+                            onClick={() => handleDeleteCategory(c.id)}
+                            style={{ background: "#ff4444", color: "white", border: "none", padding: "5px 10px", borderRadius: "4px" }}
+                        >
+                            ❌ Usuń
+                        </button>
                     </li>
                 ))}
             </ul>
 
-            {tabs.length > 0 && (
+            {/* ================= ZAKŁADKI ================= */}
+            {selectedCategory && (
                 <>
                     <h2>Zakładki</h2>
-                    <ul>
+                    <form onSubmit={handleAddTab} style={{ marginBottom: "10px" }}>
+                        <input
+                            type="text"
+                            placeholder="Nowa zakładka"
+                            value={newTab}
+                            onChange={(e) => setNewTab(e.target.value)}
+                            style={{ padding: "5px", marginRight: "10px" }}
+                            required
+                        />
+                        <button type="submit">➕ Dodaj zakładkę</button>
+                    </form>
+                    <ul style={{ listStyle: "none", padding: 0 }}>
                         {tabs.map(t => (
-                            <li key={t.id} onClick={() => setSelectedTab(t.id)}>
-                                {t.name}
+                            <li key={t.id} style={{
+                                padding: "10px",
+                                border: "1px solid #ddd",
+                                marginBottom: "5px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                            }}>
+                                <span
+                                    style={{ cursor: "pointer", fontWeight: selectedTab === t.id ? "bold" : "normal" }}
+                                    onClick={() => setSelectedTab(t.id)}
+                                >
+                                    📋 {t.name}
+                                </span>
+                                <button
+                                    onClick={() => handleDeleteTab(t.id)}
+                                    style={{ background: "#ff4444", color: "white", border: "none", padding: "5px 10px", borderRadius: "4px" }}
+                                >
+                                    ❌ Usuń
+                                </button>
                             </li>
                         ))}
                     </ul>
                 </>
             )}
 
-            {records.length > 0 && (
+            {/* ================= REKORDY ================= */}
+            {selectedTab && (
                 <>
                     <h2>Rekordy</h2>
                     <ul style={{ listStyle: "none", padding: 0 }}>
                         {records.map(r => (
-                            <li key={r.id}>
-                                {r.title} – {r.amount} zł
-                                {Number(r.quantity) > 0 ? ` (${r.quantity})` : ""}
-                                {r.details && ` | ${r.details}`}
-                                {" "}
-                                <button onClick={() => handleDelete(r.id)}>❌ Usuń</button>
+                            <li key={r.id} style={{
+                                padding: "15px",
+                                border: "1px solid #ddd",
+                                marginBottom: "10px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                            }}>
+                                <div>
+                                    <strong>{r.title}</strong> – <span style={{ color: "#2e7d32" }}>{r.amount} zł</span>
+                                    {Number(r.quantity) > 0 ? ` (${r.quantity}x)` : ""}
+                                    {r.details && <div style={{ fontSize: "0.9em", color: "#666", marginTop: "5px" }}>{r.details}</div>}
+                                </div>
+                                <button
+                                    onClick={() => handleDeleteRecord(r.id)}
+                                    style={{ background: "#ff4444", color: "white", border: "none", padding: "8px 12px", borderRadius: "4px" }}
+                                >
+                                    ❌ Usuń
+                                </button>
                             </li>
                         ))}
                     </ul>
-                </>
-            )}
 
-            {selectedTab && (
-                <>
-                    <h2>Dodaj rekord</h2>
-                    <form onSubmit={handleSubmit} style={{ marginTop: "10px" }}>
+                    <h3>Dodaj rekord</h3>
+                    <form onSubmit={handleSubmit} style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr 1fr auto",
+                        gap: "10px",
+                        marginTop: "20px"
+                    }}>
                         <input
                             type="text"
                             name="title"
@@ -334,7 +476,15 @@ function App() {
                             onChange={handleChange}
                             style={{ padding: "8px" }}
                         />
-                        <button type="submit">Dodaj</button>
+                        <button type="submit" style={{
+                            background: "#4caf50",
+                            color: "white",
+                            border: "none",
+                            padding: "8px 16px",
+                            borderRadius: "4px"
+                        }}>
+                            ➕ Dodaj
+                        </button>
                     </form>
                 </>
             )}
