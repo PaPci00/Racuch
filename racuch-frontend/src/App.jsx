@@ -4,6 +4,10 @@ function App() {
     // Stan logowania i token
     const [token, setToken] = useState(null);
     const [loginData, setLoginData] = useState({ username: "", password: "" });
+    const [registerData, setRegisterData] = useState({ username: '', password: '' });
+    const [showRegister, setShowRegister] = useState(false);
+
+
 
     // Stany danych
     const [categories, setCategories] = useState([]);
@@ -20,6 +24,8 @@ function App() {
         quantity: "",
         details: ""
     });
+
+
 
     // ================= LOGOWANIE =================
     const handleLoginChange = (e) => {
@@ -40,6 +46,32 @@ function App() {
             alert("Błąd logowania");
         }
     };
+
+    const handleRegisterChange = (e) => {
+        setRegisterData({ ...registerData, [e.target.name]: e.target.value });
+    };
+
+    const handleRegisterSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch('http://localhost:3000/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(registerData)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Konto utworzone! Zaloguj się.');
+                setRegisterData({ username: '', password: '' });
+                setShowRegister(false);
+            } else {
+                alert(data.error);
+            }
+        } catch (err) {
+            alert('Błąd sieci');
+        }
+    };
+
 
     // ================= FETCH KATEGORII =================
     useEffect(() => {
@@ -113,30 +145,34 @@ function App() {
     // ================= RENDER =================
     if (!token) {
         return (
-            <div style={{ padding: "20px" }}>
-                <h1>📊 Tracker wydatków – Logowanie</h1>
-                <form onSubmit={handleLoginSubmit}>
-                    <input
-                        type="text"
-                        name="username"
-                        placeholder="Login"
-                        value={loginData.username}
-                        onChange={handleLoginChange}
-                        required
-                    />
-                    <input
-                        type="password"
-                        name="password"
-                        placeholder="Hasło"
-                        value={loginData.password}
-                        onChange={handleLoginChange}
-                        required
-                    />
-                    <button type="submit">Zaloguj</button>
-                </form>
+            <div style={{ padding: '20px' }}>
+                <h1>Tracker wydatków</h1>
+                <h2>{showRegister ? 'Rejestracja nowego konta' : 'Logowanie'}</h2>
+
+                {showRegister ? (
+                    <form onSubmit={handleRegisterSubmit}>
+                        <input type="text" name="username" placeholder="Nazwa użytkownika"
+                               value={registerData.username} onChange={handleRegisterChange} required />
+                        <input type="password" name="password" placeholder="Hasło"
+                               value={registerData.password} onChange={handleRegisterChange} required />
+                        <button type="submit">Zarejestruj</button>
+                        <br/><button type="button" onClick={() => setShowRegister(false)}>Mam konto</button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleLoginSubmit}>
+                        <input type="text" name="username" placeholder="Login"
+                               value={loginData.username} onChange={handleLoginChange} required />
+                        <input type="password" name="password" placeholder="Hasło"
+                               value={loginData.password} onChange={handleLoginChange} required />
+                        <button type="submit">Zaloguj</button>
+                        <br/><button type="button" onClick={() => setShowRegister(true)}>Utwórz konto</button>
+                    </form>
+                )}
             </div>
         );
     }
+
+
 
     return (
         <div style={{ padding: "20px" }}>

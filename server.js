@@ -57,6 +57,54 @@ app.get("/categories", authenticate, async (req, res) => {
     }
 });
 
+// ================= REGISTER =================
+app.post("/register", async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        // Sprawdź czy użytkownik już istnieje
+        const [existingUsers] = await db.query("SELECT id FROM users WHERE username = ?", [username]);
+        if (existingUsers.length > 0) {
+            return res.status(400).json({ error: "Użytkownik już istnieje" });
+        }
+
+        // Utwórz nowego użytkownika
+        const [userResult] = await db.query(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            [username, password]
+        );
+        const userId = userResult.insertId;
+
+        // ============================
+        // ➤ TU TWORZYMY DOMYŚLNE DANE
+        // ============================
+
+        // 1. Kategoria "Zakupy"
+        const [catResult] = await db.query(
+            "INSERT INTO categories (user_id, name) VALUES (?, ?)",
+            [userId, "Zakupy"]
+        );
+
+        const categoryId = catResult.insertId;
+
+        // 2. Zakładka "Jedzenie"
+        await db.query(
+            "INSERT INTO tabs (category_id, name) VALUES (?, ?)",
+            [categoryId, "Jedzenie"]
+        );
+
+        res.json({
+            message: "Konto utworzone! Dodano kategorię 'Zakupy' i zakładkę 'Jedzenie'.",
+            userId
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+
+
 // Pobierz zakładki dla kategorii
 app.get("/categories/:id/tabs", authenticate, async (req, res) => {
     try {
@@ -122,6 +170,7 @@ app.delete("/records/:id", authenticate, async (req, res) => {
              WHERE records.id = ? AND categories.user_id = ?`,
             [req.params.id, req.user.id]
         );
+
         if (records.length === 0) return res.status(403).json({ error: "Nie masz dostępu do tego rekordu" });
 
         const [result] = await db.query("DELETE FROM records WHERE id = ?", [req.params.id]);
